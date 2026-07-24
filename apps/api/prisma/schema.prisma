@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ROOT
+  SUPER_ADMIN
+  ADMIN_GENERAL
+  ADMIN_TENANT
+  EDITOR
+  PRODUCER
+  MODERATOR
+  SUPPORT
+  ANALYST
+  PREMIUM_USER
+  STANDARD_USER
+  FREE_USER
+  GUEST
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+enum EventStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+  TRIALING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
+  MANUAL
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenant (Fase 3)
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  branding      Branding?
+  users         User[]
+  movies        Movie[]
+  series        Series[]
+  channels      Channel[]
+  events        Event[]
+  plans         Plan[]
+
+  @@map("tenants")
+}
+
+model Branding {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId  String   @unique
+  logoUrl   String?
+  faviconUrl String?
+  primaryColor   String?
+  secondaryColor String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("branding")
+}
+
+// ---------------------------------------------------------------------------
+// Identidad y acceso
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  role         Role       @default(FREE_USER)
+  status       UserStatus @default(ACTIVE)
+  tenant       Tenant?    @relation(fields: [tenantId], references: [id])
+  tenantId     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  devices        Device[]
+  favorites      Favorite[]
+  watchHistory   WatchHistory[]
+  comments       Comment[]
+  subscriptions  Subscription[]
+  auditLogs      AuditLog[]
+  producedMovies Movie[]        @relation("MovieProducer")
+  producedSeries Series[]       @relation("SeriesProducer")
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Device {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  name       String
+  platform   String
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      User?    @relation(fields: [actorId], references: [id])
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Catálogo VOD
+// ---------------------------------------------------------------------------
+
+model Genre {
+  id     String   @id @default(cuid())
+  name   String   @unique
+  movies Movie[]
+  series Series[]
+
+  @@map("genres")
+}
+
+model Movie {
+  id              String   @id @default(cuid())
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId        String?
+  title           String
+  slug            String   @unique
+  synopsis        String?
+  releaseYear     Int?
+  durationMinutes Int?
+  posterUrl       String?
+  backdropUrl     String?
+  trailerUrl      String?
+  videoUrl        String
+  isPremium       Boolean  @default(false)
+  isPublished     Boolean  @default(true)
+  rating          Float?   @default(0)
+  producer        User?    @relation("MovieProducer", fields: [producerId], references: [id])
+  producerId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  genres        Genre[]
+  favorites     Favorite[]
+  watchHistory  WatchHistory[]
+  comments      Comment[]
+
+  @@index([tenantId])
+  @@map("movies")
+}
+
+model Series {
+  id          String   @id @default(cuid())
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  title       String
+  slug        String   @unique
+  synopsis    String?
+  posterUrl   String?
+  backdropUrl String?
+  isPremium   Boolean  @default(false)
+  isPublished Boolean  @default(true)
+  rating      Float?   @default(0)
+  producer    User?    @relation("SeriesProducer", fields: [producerId], references: [id])
+  producerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  genres    Genre[]
+  seasons   Season[]
+  favorites Favorite[]
+  comments  Comment[]
+
+  @@index([tenantId])
+  @@map("series")
+}
+
+model Season {
+  id           String   @id @default(cuid())
+  series       Series   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId     String
+  number       Int
+  title        String?
+  posterUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  episodes Episode[]
+
+  @@unique([seriesId, number])
+  @@map("seasons")
+}
+
+model Episode {
+  id              String   @id @default(cuid())
+  season          Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  seasonId        String
+  number          Int
+  title           String
+  synopsis        String?
+  durationMinutes Int?
+  thumbnailUrl    String?
+  videoUrl        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  watchHistory WatchHistory[]
+
+  @@unique([seasonId, number])
+  @@map("episodes")
+}
+
+// ---------------------------------------------------------------------------
+// TV en vivo / EPG (Fase 3)
+// ---------------------------------------------------------------------------
+
+model Channel {
+  id          String   @id @default(cuid())
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  streamUrl   String
+  isPremium   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  epgPrograms EpgProgram[]
+
+  @@index([tenantId])
+  @@map("channels")
+}
+
+model EpgProgram {
+  id          String   @id @default(cuid())
+  channel     Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelId   String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([channelId, startsAt])
+  @@map("epg_programs")
+}
+
+// ---------------------------------------------------------------------------
+// Eventos en vivo / PPV (Fase 3)
+// ---------------------------------------------------------------------------
+
+model Event {
+  id          String      @id @default(cuid())
+  tenant      Tenant?     @relation(fields: [tenantId], references: [id])
+  tenantId    String?
+  title       String
+  slug        String      @unique
+  description String?
+  posterUrl   String?
+  streamUrl   String?
+  status      EventStatus @default(SCHEDULED)
+  isPpv       Boolean     @default(false)
+  priceCents  Int?
+  startsAt    DateTime
+  endsAt      DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@map("events")
+}
+
+// ---------------------------------------------------------------------------
+// Interacción del usuario
+// ---------------------------------------------------------------------------
+
+model Favorite {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  movieId   String?
+  series    Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId  String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, movieId])
+  @@unique([userId, seriesId])
+  @@map("favorites")
+}
+
+model WatchHistory {
+  id              String   @id @default(cuid())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  movie           Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  movieId         String?
+  episode         Episode? @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  episodeId       String?
+  progressSeconds Int      @default(0)
+  durationSeconds Int?
+  completed       Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, movieId])
+  @@unique([userId, episodeId])
+  @@map("watch_history")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  movie     Movie?   @relation(fields: [movieId], references: [id], onDelete: Cascade)
+  movieId   String?
+  series    Series?  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  seriesId  String?
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("comments")
+}
+
+// ---------------------------------------------------------------------------
+// Monetización (Fase 2)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id           String   @id @default(cuid())
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  tenantId     String?
+  name         String
+  slug         String   @unique
+  priceCents   Int
+  currency     String   @default("USD")
+  intervalDays Int      @default(30)
+  maxProfiles  Int      @default(1)
+  maxQuality   String   @default("HD")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([tenantId])
+  @@map("plans")
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  plan      Plan               @relation(fields: [planId], references: [id])
+  planId    String
+  status    SubscriptionStatus @default(TRIALING)
+  startsAt  DateTime           @default(now())
+  endsAt    DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  payments Payment[]
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id             String          @id @default(cuid())
+  subscription   Subscription    @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  provider       PaymentProvider @default(MANUAL)
+  status         PaymentStatus   @default(PENDING)
+  amountCents    Int
+  currency       String          @default("USD")
+  externalRef    String?
+  createdAt      DateTime        @default(now())
+
+  @@index([subscriptionId])
+  @@map("payments")
+}
