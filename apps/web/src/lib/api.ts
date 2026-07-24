@@ -93,6 +93,10 @@ export interface Favorite {
   series: Series | null;
 }
 
+export type CatalogItem =
+  | { kind: 'movie'; item: Movie }
+  | { kind: 'series'; item: Series };
+
 export interface AuthUser {
   id: string;
   email: string;

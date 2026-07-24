@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { api, Favorite } from '@/lib/api';
-import { MovieCard } from '@/components/movie-card';
+import { ThumbCard, ThumbItem } from '@/components/thumb-card';
 
 export default function FavoritosPage() {
   const { user, token, loading } = useAuth();
@@ -25,10 +25,10 @@ export default function FavoritosPage() {
 
   if (!loading && !user) {
     return (
-      <div className="mx-auto max-w-xl px-6 py-16 text-center">
+      <div className="flex min-h-screen items-center justify-center px-6 text-center">
         <p className="text-white/70">
-          Inicia sesión para ver tus favoritos.{' '}
-          <Link href="/login" className="text-primary">
+          Inicia sesión para ver tu lista.{' '}
+          <Link href="/login" className="font-medium text-white hover:underline">
             Iniciar sesión
           </Link>
         </p>
@@ -36,20 +36,32 @@ export default function FavoritosPage() {
     );
   }
 
+  const items: ThumbItem[] = favorites
+    .map((fav) => {
+      const entity = fav.movie ?? fav.series;
+      if (!entity) return null;
+      return {
+        id: fav.id,
+        title: entity.title,
+        href: fav.movie ? `/pelicula/${entity.slug}` : `/serie/${entity.slug}`,
+        image: entity.backdropUrl ?? entity.posterUrl,
+        isPremium: entity.isPremium,
+        genres: entity.genres.map((g) => g.name),
+      };
+    })
+    .filter((x): x is ThumbItem => x !== null);
+
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
-      <h1 className="mb-6 text-2xl font-bold">Mis favoritos</h1>
+    <div className="min-h-screen px-4 pb-16 pt-24 sm:px-6 md:px-12">
+      <h1 className="mb-6 text-2xl font-bold text-white">Mi lista</h1>
       {fetching && <p className="text-white/50">Cargando…</p>}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-        {favorites.map((fav) => {
-          const item = fav.movie ?? fav.series;
-          if (!item) return null;
-          const href = fav.movie ? `/pelicula/${item.slug}` : `/serie/${item.slug}`;
-          return <MovieCard key={fav.id} item={item} href={href} />;
-        })}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        {items.map((item) => (
+          <ThumbCard key={item.id} item={item} />
+        ))}
       </div>
-      {!fetching && favorites.length === 0 && (
-        <p className="text-sm text-white/50">Aún no tienes favoritos.</p>
+      {!fetching && items.length === 0 && (
+        <p className="text-sm text-white/50">Aún no tienes nada en tu lista.</p>
       )}
     </div>
   );

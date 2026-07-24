@@ -29,49 +29,52 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-sm flex-col gap-4 px-6 py-16">
-      <h1 className="text-2xl font-bold">Crear cuenta</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="text"
-          required
-          placeholder="Nombre"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-md bg-surface px-4 py-2 outline-none"
-        />
-        <input
-          type="email"
-          required
-          placeholder="Correo electrónico"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-md bg-surface px-4 py-2 outline-none"
-        />
-        <input
-          type="password"
-          required
-          minLength={8}
-          placeholder="Contraseña (mín. 8 caracteres)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-md bg-surface px-4 py-2 outline-none"
-        />
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-primary px-4 py-2 font-semibold hover:bg-primary/90 disabled:opacity-60"
-        >
-          {loading ? 'Creando…' : 'Crear cuenta'}
-        </button>
-      </form>
-      <p className="text-sm text-white/60">
-        ¿Ya tienes cuenta?{' '}
-        <Link href="/login" className="text-primary">
-          Inicia sesión
-        </Link>
-      </p>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-16">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(229,9,20,0.18),_transparent_60%)]" />
+      <div className="relative w-full max-w-md rounded-lg bg-black/75 p-8 shadow-2xl ring-1 ring-white/10 sm:p-12">
+        <h1 className="text-3xl font-bold text-white">Crear cuenta</h1>
+        <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-3">
+          <input
+            type="text"
+            required
+            placeholder="Nombre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-md border border-white/10 bg-surface px-4 py-3 text-white outline-none focus:border-white/30"
+          />
+          <input
+            type="email"
+            required
+            placeholder="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="rounded-md border border-white/10 bg-surface px-4 py-3 text-white outline-none focus:border-white/30"
+          />
+          <input
+            type="password"
+            required
+            minLength={8}
+            placeholder="Contraseña (mín. 8 caracteres)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-md border border-white/10 bg-surface px-4 py-3 text-white outline-none focus:border-white/30"
+          />
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 rounded-md bg-primary px-4 py-3 font-semibold text-white transition hover:bg-primary/90 disabled:opacity-60"
+          >
+            {loading ? 'Creando…' : 'Crear cuenta'}
+          </button>
+        </form>
+        <p className="mt-6 text-sm text-white/50">
+          ¿Ya tienes cuenta?{' '}
+          <Link href="/login" className="font-medium text-white hover:underline">
+            Inicia sesión
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -26,9 +26,9 @@ export function FavoriteButton({ movieId, seriesId }: { movieId?: string; series
     <button
       onClick={handleClick}
       disabled={status === 'saving' || status === 'saved'}
-      className="rounded-md bg-white/10 px-4 py-2 text-sm font-medium hover:bg-white/20 disabled:opacity-60"
+      className="flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 disabled:opacity-60"
     >
-      {status === 'saved' ? 'En favoritos ✓' : 'Agregar a favoritos'}
+      {status === 'saved' ? '✓ En mi lista' : '+ Mi lista'}
     </button>
   );
 }

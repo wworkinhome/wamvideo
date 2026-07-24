@@ -9,7 +9,10 @@ export class FavoritesService {
   findAllForUser(userId: string) {
     return this.prisma.favorite.findMany({
       where: { userId },
-      include: { movie: true, series: true },
+      include: {
+        movie: { include: { genres: true } },
+        series: { include: { genres: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
