@@ -183,6 +183,14 @@ export function EpgGrid({ channels }: { channels: Channel[] }) {
             <div key={channel.id} className="flex border-b border-white/5">
               <button
                 type="button"
+                onMouseEnter={() => {
+                  const program = currentProgramFor(channel, now ?? new Date());
+                  if (program) setSelected({ channel, program });
+                }}
+                onFocus={() => {
+                  const program = currentProgramFor(channel, now ?? new Date());
+                  if (program) setSelected({ channel, program });
+                }}
                 onClick={() => {
                   const program = currentProgramFor(channel, now ?? new Date());
                   if (program) setSelected({ channel, program });
@@ -215,6 +223,8 @@ export function EpgGrid({ channels }: { channels: Channel[] }) {
                     <button
                       key={program.id}
                       type="button"
+                      onMouseEnter={() => setSelected({ channel, program })}
+                      onFocus={() => setSelected({ channel, program })}
                       onClick={() => setSelected({ channel, program })}
                       className={`absolute top-0 flex flex-col justify-center overflow-hidden border-r border-background px-3 text-left transition ${
                         isSelected ? 'bg-white/15' : live ? 'bg-primary/20 hover:bg-primary/25' : 'bg-surface hover:bg-white/10'
