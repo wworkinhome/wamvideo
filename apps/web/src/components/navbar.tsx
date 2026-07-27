@@ -29,6 +29,9 @@ export function Navbar() {
           <Link href="/catalogo" className="transition hover:text-white">
             Catálogo
           </Link>
+          <Link href="/guia" className="transition hover:text-white">
+            Guía de TV
+          </Link>
           {!loading && user && (
             <Link href="/favoritos" className="transition hover:text-white">
               Mi lista

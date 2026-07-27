@@ -23,8 +23,11 @@
 
 ## Fase 3 — TV en vivo, EPG y SaaS multi-tenant
 
-- [ ] Ingesta de canales en vivo y workers FFmpeg para HLS.
-- [ ] Guía Electrónica de Programación (EPG).
+- [x] Guía Electrónica de Programación (EPG): página `/guia` con panel de
+      vista previa, filtro por categoría, línea de "ahora" y grilla de
+      horarios por canal; página `/canal/[slug]` con reproductor en vivo.
+- [ ] Ingesta real de canales en vivo y workers FFmpeg para HLS (hoy los
+      canales usan streams de ejemplo).
 - [ ] Eventos en vivo y Pay-Per-View (PPV).
 - [ ] Paquetes de canales.
 - [ ] DVR, Catch-up TV, TimeShift.

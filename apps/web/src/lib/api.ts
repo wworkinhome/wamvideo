@@ -97,6 +97,25 @@ export type CatalogItem =
   | { kind: 'movie'; item: Movie }
   | { kind: 'series'; item: Series };
 
+export interface EpgProgram {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface Channel {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  category: string;
+  streamUrl: string;
+  isPremium: boolean;
+  epgPrograms: EpgProgram[];
+}
+
 export interface AuthUser {
   id: string;
   email: string;

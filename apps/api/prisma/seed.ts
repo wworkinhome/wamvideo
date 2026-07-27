@@ -153,6 +153,190 @@ const SERIES: SeriesSeed[] = [
   },
 ];
 
+interface ChannelSeed {
+  name: string;
+  slug: string;
+  category: string;
+  isPremium: boolean;
+  synopsis: (title: string) => string;
+  programs: string[];
+}
+
+const CHANNELS: ChannelSeed[] = [
+  {
+    name: 'WAM Novelas',
+    slug: 'wam-novelas',
+    category: 'Novelas',
+    isPremium: false,
+    synopsis: (t) => `Capítulo de la telenovela "${t}".`,
+    programs: [
+      'Amor Sin Fronteras',
+      'Corazón Indomable',
+      'Entre Copas',
+      'Lo Que la Vida Me Dio',
+      'Pasión y Poder',
+      'Vivir a Destiempo',
+      'Dulce Ambición',
+      'Café con Aroma',
+      'Reinas del Barrio',
+      'Un Amor de Verdad',
+      'Noches sin Ti',
+      'La Herencia',
+      'Mentiras Piadosas',
+      'Segunda Oportunidad',
+      'Cartas Nunca Enviadas',
+      'Madrugada Eterna',
+    ],
+  },
+  {
+    name: 'WAM Cine',
+    slug: 'wam-cine',
+    category: 'Películas',
+    isPremium: false,
+    synopsis: (t) => `Función especial: "${t}".`,
+    programs: [
+      'Cine de Medianoche',
+      'Clásicos del Cine',
+      'Estreno de la Semana',
+      'Maratón de Comedia',
+      'Ciclo Ciencia Ficción',
+      'Cine Familiar',
+      'Función Doble',
+      'Cine de Autor',
+      'Sesión Continua',
+      'Taquilla del Mes',
+      'Cine Under',
+      'Joyas Ocultas',
+      'Noche de Terror',
+      'Drama Contemporáneo',
+      'Acción sin Pausa',
+      'Cine de Culto',
+    ],
+  },
+  {
+    name: 'WAM Noticias',
+    slug: 'wam-noticias',
+    category: 'Noticias',
+    isPremium: false,
+    synopsis: (t) => `Cobertura informativa: "${t}".`,
+    programs: [
+      'Primera Edición',
+      'Panorama Matutino',
+      'Economía Hoy',
+      'Al Instante',
+      'Reporte Central',
+      'Mundo en Foco',
+      'Edición Mediodía',
+      'Última Hora',
+      'Enfoque Regional',
+      'Tecnología y Sociedad',
+      'Edición Vespertina',
+      'Debate Nacional',
+      'Cierre Informativo',
+      'Noticias 24',
+      'Resumen del Día',
+      'Trasnoche Informativo',
+    ],
+  },
+  {
+    name: 'WAM Deportes',
+    slug: 'wam-deportes',
+    category: 'Deportes',
+    isPremium: true,
+    synopsis: (t) => `Transmisión deportiva: "${t}".`,
+    programs: [
+      'SportCenter WAM',
+      'Fútbol en Vivo: Previa',
+      'Fútbol en Vivo',
+      'Post Partido',
+      'Baloncesto Total',
+      'Mundo Motor',
+      'Boxeo Clásico',
+      'Ronda de Campeones',
+      'Tenis en Acción',
+      'Deportes Extremos',
+      'Grandes Rivalidades',
+      'Resumen Deportivo',
+      'Fútbol Internacional',
+      'La Previa Nocturna',
+      'Highlights de la Semana',
+      'Trasnoche Deportivo',
+    ],
+  },
+  {
+    name: 'WAM Kids',
+    slug: 'wam-kids',
+    category: 'Kids',
+    isPremium: false,
+    synopsis: (t) => `Programa infantil: "${t}".`,
+    programs: [
+      'Aventuras de Buck Bunny',
+      'Mundo Mágico',
+      'Risas y Colores',
+      'Exploradores Junior',
+      'Cuentos para Crecer',
+      'Súper Amigos',
+      'Taller Creativo',
+      'Dino Aventuras',
+      'Canciones para Bailar',
+      'Piratas del Patio',
+      'Robots y Amigos',
+      'Jardín de Sorpresas',
+      'Hora del Cuento',
+      'Campamento Divertido',
+      'Estrellas del Espacio',
+      'Buenas Noches Kids',
+    ],
+  },
+];
+
+const PROGRAM_BLOCK_MINUTES = 90; // 16 bloques x 90 min = 24h exactas
+
+async function seedChannels() {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  for (const channel of CHANNELS) {
+    const createdChannel = await prisma.channel.upsert({
+      where: { slug: channel.slug },
+      create: {
+        name: channel.name,
+        slug: channel.slug,
+        category: channel.category,
+        isPremium: channel.isPremium,
+        streamUrl: SAMPLE_HLS.bigBuckBunny,
+      },
+      update: { category: channel.category, isPremium: channel.isPremium },
+    });
+
+    for (const [index, title] of channel.programs.entries()) {
+      const startsAt = new Date(startOfDay.getTime() + index * PROGRAM_BLOCK_MINUTES * 60_000);
+      const endsAt = new Date(startsAt.getTime() + PROGRAM_BLOCK_MINUTES * 60_000);
+
+      const existing = await prisma.epgProgram.findFirst({
+        where: { channelId: createdChannel.id, startsAt },
+      });
+
+      if (existing) {
+        await prisma.epgProgram.update({
+          where: { id: existing.id },
+          data: { title, description: channel.synopsis(title), endsAt },
+        });
+      } else {
+        await prisma.epgProgram.create({
+          data: {
+            channelId: createdChannel.id,
+            title,
+            description: channel.synopsis(title),
+            startsAt,
+            endsAt,
+          },
+        });
+      }
+    }
+  }
+}
+
 async function main() {
   const genres = new Map<string, string>();
   for (const name of GENRE_NAMES) {
@@ -261,8 +445,12 @@ async function main() {
     update: {},
   });
 
+  await seedChannels();
+
   // eslint-disable-next-line no-console
-  console.log(`Seed completado: ${MOVIES.length} películas, ${SERIES.length} series.`);
+  console.log(
+    `Seed completado: ${MOVIES.length} películas, ${SERIES.length} series, ${CHANNELS.length} canales.`,
+  );
 }
 
 main()

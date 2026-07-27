@@ -270,6 +270,7 @@ model Channel {
   name        String
   slug        String   @unique
   logoUrl     String?
+  category    String   @default("General")
   streamUrl   String
   isPremium   Boolean  @default(false)
   isActive    Boolean  @default(true)

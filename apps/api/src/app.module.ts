@@ -7,6 +7,7 @@ import { MoviesModule } from './movies/movies.module';
 import { SeriesModule } from './series/series.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { WatchHistoryModule } from './watch-history/watch-history.module';
+import { ChannelsModule } from './channels/channels.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { WatchHistoryModule } from './watch-history/watch-history.module';
     SeriesModule,
     FavoritesModule,
     WatchHistoryModule,
+    ChannelsModule,
   ],
 })
 export class AppModule {}
