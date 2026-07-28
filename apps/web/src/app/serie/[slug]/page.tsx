@@ -1,35 +1,75 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { api, Series } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { VideoPlayer } from '@/components/video-player';
+import { PremiumLock } from '@/components/premium-lock';
 import { FavoriteButton } from '@/components/favorite-button';
 import { Row } from '@/components/row';
 import { ThumbItem } from '@/components/thumb-card';
 
-export default async function SeriesDetailPage({ params }: { params: { slug: string } }) {
-  const series = await api.get<Series>(`/series/${params.slug}`).catch(() => null);
+export default function SeriesDetailPage({ params }: { params: { slug: string } }) {
+  const { token, loading: authLoading } = useAuth();
+  const [series, setSeries] = useState<Series | null | undefined>(undefined);
+  const [related, setRelated] = useState<ThumbItem[]>([]);
 
-  if (!series) {
+  useEffect(() => {
+    if (authLoading) return;
+    let cancelled = false;
+
+    api
+      .get<Series>(`/series/${params.slug}`, token)
+      .then((s) => {
+        if (!cancelled) setSeries(s);
+      })
+      .catch(() => {
+        if (!cancelled) setSeries(null);
+      });
+
+    api
+      .get<Series[]>('/series', token)
+      .then((all) => {
+        if (cancelled) return;
+        setRelated(
+          all
+            .filter((s) => s.slug !== params.slug)
+            .map((s) => ({
+              id: s.id,
+              title: s.title,
+              href: `/serie/${s.slug}`,
+              image: s.backdropUrl ?? s.posterUrl,
+              isPremium: s.isPremium,
+              genres: s.genres.map((g) => g.name),
+            })),
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.slug, token, authLoading]);
+
+  if (series === undefined) {
+    return <div className="pt-24 text-center text-white/50">Cargando…</div>;
+  }
+
+  if (series === null) {
     notFound();
   }
 
   const firstEpisode = series.seasons[0]?.episodes[0];
 
-  const allSeries = await api.get<Series[]>('/series').catch(() => [] as Series[]);
-  const related: ThumbItem[] = allSeries
-    .filter((s) => s.id !== series.id)
-    .map((s) => ({
-      id: s.id,
-      title: s.title,
-      href: `/serie/${s.slug}`,
-      image: s.backdropUrl ?? s.posterUrl,
-      isPremium: s.isPremium,
-      genres: s.genres.map((g) => g.name),
-    }));
-
   return (
     <div className="pb-16 pt-16">
       <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">
-        {firstEpisode && <VideoPlayer src={firstEpisode.videoUrl} poster={series.backdropUrl} />}
+        {firstEpisode?.videoUrl ? (
+          <VideoPlayer src={firstEpisode.videoUrl} poster={series.backdropUrl} />
+        ) : (
+          <PremiumLock title={series.title} />
+        )}
 
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div>

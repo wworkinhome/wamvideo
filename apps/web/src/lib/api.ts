@@ -54,8 +54,9 @@ export interface Movie {
   durationMinutes: number | null;
   posterUrl: string | null;
   backdropUrl: string | null;
-  videoUrl: string;
+  videoUrl: string | null;
   isPremium: boolean;
+  locked?: boolean;
   genres: Genre[];
 }
 
@@ -65,7 +66,7 @@ export interface Episode {
   title: string;
   synopsis: string | null;
   durationMinutes: number | null;
-  videoUrl: string;
+  videoUrl: string | null;
 }
 
 export interface Season {
@@ -83,6 +84,7 @@ export interface Series {
   posterUrl: string | null;
   backdropUrl: string | null;
   isPremium: boolean;
+  locked?: boolean;
   genres: Genre[];
   seasons: Season[];
 }
@@ -111,8 +113,9 @@ export interface Channel {
   slug: string;
   logoUrl: string | null;
   category: string;
-  streamUrl: string;
+  streamUrl: string | null;
   isPremium: boolean;
+  locked?: boolean;
   epgPrograms: EpgProgram[];
 }
 
@@ -126,4 +129,23 @@ export interface AuthUser {
 export interface AuthResponse {
   accessToken: string;
   user: AuthUser;
+}
+
+export interface Plan {
+  id: string;
+  name: string;
+  slug: string;
+  priceCents: number;
+  currency: string;
+  intervalDays: number;
+  maxProfiles: number;
+  maxQuality: string;
+}
+
+export interface Subscription {
+  id: string;
+  status: string;
+  startsAt: string;
+  endsAt: string | null;
+  plan: Plan;
 }

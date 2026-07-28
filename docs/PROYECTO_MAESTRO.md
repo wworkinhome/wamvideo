@@ -56,20 +56,23 @@ Ver [ROADMAP.md](./ROADMAP.md) para el detalle de fases y estado de avance.
 ## Estado actual del repositorio
 
 Este repositorio contiene el scaffolding inicial del monorepo, la
-implementación funcional de la Fase 1 (MVP VOD) y un primer avance de la
-Fase 3 (Guía Electrónica de Programación):
+implementación funcional de la Fase 1 (MVP VOD), planes/suscripciones de
+la Fase 2 y un primer avance de la Fase 3 (Guía Electrónica de
+Programación):
 
 - `apps/api`: backend NestJS + Prisma con autenticación, catálogo de
-  películas/series, favoritos, historial de reproducción y canales/EPG.
+  películas/series, favoritos, historial de reproducción, canales/EPG y
+  planes/suscripciones con bloqueo real de contenido Premium.
 - `apps/web`: frontend Next.js con landing, catálogo, ficha de
-  película/serie, reproductor HLS, login/registro, favoritos y una Guía
+  película/serie, reproductor HLS, login/registro, favoritos, una Guía
   de TV (`/guia`) con panel de vista previa, filtro por categoría y
-  grilla de horarios con línea de "ahora en vivo".
+  grilla de horarios con línea de "ahora en vivo", y una página de
+  planes (`/planes`) para suscribirse/cancelar.
 - `docs/`: documentación funcional, técnica y de arquitectura.
 
-Los módulos de ingesta real de TV en vivo, eventos, pagos, IA y
-administración multi-tenant están documentados y modelados en la base de
-datos, pero su implementación completa corresponde a las fases 2 a 4 del
+Los módulos de ingesta real de TV en vivo, eventos, pasarela de pago real,
+IA y administración multi-tenant están documentados y modelados en la base
+de datos, pero su implementación completa corresponde a las fases 2 a 4 del
 roadmap.
 
 Este documento resume el proyecto maestro. La documentación funcional,

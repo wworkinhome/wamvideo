@@ -14,8 +14,13 @@
 
 ## Fase 2 — Suscripciones y App móvil
 
-- [ ] Planes y suscripciones (Stripe u otra pasarela de pagos).
-- [ ] Restricción de contenido por plan (Free/Estándar/Premium).
+- [x] Planes y suscripciones: página `/planes`, alta/cancelación desde la
+      API (`/subscriptions`). El cobro es manual (`PaymentProvider.MANUAL`);
+      falta integrar una pasarela real (Stripe u otra).
+- [x] Restricción de contenido por plan: películas/series/canales
+      `isPremium` ocultan su `videoUrl`/`streamUrl` en la API si el usuario
+      no tiene una suscripción activa de pago, mostrando un candado en el
+      reproductor con CTA a `/planes`.
 - [ ] Subtítulos y múltiples audios en el reproductor.
 - [ ] Chromecast, AirPlay, Picture-in-Picture.
 - [ ] Descargas offline.

@@ -4,8 +4,11 @@ import { SeriesService } from './series.service';
 import { CreateSeriesDto } from './dto/create-series.dto';
 import { UpdateSeriesDto } from './dto/update-series.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AccessService } from '../access/access.service';
 
 const CONTENT_MANAGER_ROLES = [
   Role.ROOT,
@@ -18,16 +21,38 @@ const CONTENT_MANAGER_ROLES = [
 
 @Controller('series')
 export class SeriesController {
-  constructor(private readonly seriesService: SeriesService) {}
+  constructor(
+    private readonly seriesService: SeriesService,
+    private readonly accessService: AccessService,
+  ) {}
 
   @Get()
   findAll() {
     return this.seriesService.findAll();
   }
 
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
-    return this.seriesService.findBySlug(slug);
+  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; role: Role } | null) {
+    const series = await this.seriesService.findBySlug(slug);
+
+    if (!series.isPremium) {
+      return { ...series, locked: false };
+    }
+
+    const unlocked = await this.accessService.hasPremiumAccess(user);
+    if (unlocked) {
+      return { ...series, locked: false };
+    }
+
+    return {
+      ...series,
+      locked: true,
+      seasons: series.seasons.map((season) => ({
+        ...season,
+        episodes: season.episodes.map((episode) => ({ ...episode, videoUrl: null })),
+      })),
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -8,11 +8,15 @@ import { SeriesModule } from './series/series.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { WatchHistoryModule } from './watch-history/watch-history.module';
 import { ChannelsModule } from './channels/channels.module';
+import { AccessModule } from './access/access.module';
+import { PlansModule } from './plans/plans.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AccessModule,
     AuthModule,
     UsersModule,
     MoviesModule,
@@ -20,6 +24,8 @@ import { ChannelsModule } from './channels/channels.module';
     FavoritesModule,
     WatchHistoryModule,
     ChannelsModule,
+    PlansModule,
+    SubscriptionsModule,
   ],
 })
 export class AppModule {}
