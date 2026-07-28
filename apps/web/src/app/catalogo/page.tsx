@@ -1,18 +1,7 @@
 import { api, Movie, Series } from '@/lib/api';
 import { Hero, HeroItem } from '@/components/hero';
 import { Row } from '@/components/row';
-import { ThumbItem } from '@/components/thumb-card';
-
-function toThumb(kind: 'movie' | 'series', item: Movie | Series): ThumbItem {
-  return {
-    id: item.id,
-    title: item.title,
-    href: kind === 'movie' ? `/pelicula/${item.slug}` : `/serie/${item.slug}`,
-    image: item.backdropUrl ?? item.posterUrl,
-    isPremium: item.isPremium,
-    genres: item.genres.map((g) => g.name),
-  };
-}
+import { toThumb, buildGenreRows } from '@/lib/catalog';
 
 export default async function CatalogoPage() {
   const [movies, series] = await Promise.all([
@@ -39,19 +28,7 @@ export default async function CatalogoPage() {
       }
     : null;
 
-  const genreMap = new Map<string, ThumbItem[]>();
-  for (const [kind, list] of [
-    ['movie', movies],
-    ['series', series],
-  ] as const) {
-    for (const item of list) {
-      for (const genre of item.genres) {
-        const bucket = genreMap.get(genre.name) ?? [];
-        bucket.push(toThumb(kind, item));
-        genreMap.set(genre.name, bucket);
-      }
-    }
-  }
+  const genreMap = buildGenreRows(movies, series);
 
   return (
     <div className="pb-16">
