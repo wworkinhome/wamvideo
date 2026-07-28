@@ -37,7 +37,11 @@ const CONTENT_MANAGER_ROLES: RoleName[] = [
 // Emails que ya existían en la base de datos de Supabase antes de esta migración
 // de esquema. Solo se les vincula un rol vía user_roles; su password_hash nunca
 // se toca aquí.
-const SUPERADMIN_EMAILS = ['wworkinghome@gmail.com'];
+const EXISTING_USER_ROLES: Record<string, RoleName> = {
+  'wworkinghome@gmail.com': ROLE_NAMES.SUPER_ADMIN,
+  'root@wamvideo.local': ROLE_NAMES.ROOT,
+  'wmosqueraf@gmail.com': ROLE_NAMES.FREE_USER,
+};
 
 function slugify(name: string) {
   return name
@@ -404,15 +408,14 @@ async function ensureDefaultProfile(userId: string, name: string) {
   }
 }
 
-async function linkExistingSuperadmins(roleIdByName: Map<string, string>) {
-  const superAdminRoleId = roleIdByName.get(ROLE_NAMES.SUPER_ADMIN)!;
-  for (const email of SUPERADMIN_EMAILS) {
+async function linkExistingUsers(roleIdByName: Map<string, string>) {
+  for (const [email, roleName] of Object.entries(EXISTING_USER_ROLES)) {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       continue;
     }
     // Nunca se toca password_hash aquí: solo se vincula el rol y se asegura un perfil.
-    await ensureUserRole(user.id, superAdminRoleId, null);
+    await ensureUserRole(user.id, roleIdByName.get(roleName)!, null);
     await ensureDefaultProfile(user.id, user.name);
   }
 }
@@ -602,7 +605,7 @@ async function seedChannels(tenantId: string) {
 async function main() {
   const tenant = await seedTenant();
   const roleIdByName = await seedRolesAndPermissions();
-  await linkExistingSuperadmins(roleIdByName);
+  await linkExistingUsers(roleIdByName);
   await seedDemoUsers(tenant.id, roleIdByName);
 
   const genres = await seedGenres(tenant.id);
