@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException();
     }
 
-    const roleNames = user.user_roles.map((userRole) => userRole.roles.name);
+    const roleNames = [...new Set(user.user_roles.map((userRole) => userRole.roles.name))];
     const { password_hash: _passwordHash, user_roles: _userRoles, ...safeUser } = user;
     return { ...safeUser, role: pickPrimaryRole(roleNames), roles: roleNames };
   }

@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { DEFAULT_TENANT_SLUG, pickPrimaryRole, ROLE_NAMES } from '../common/constants';
+import { getOrCreateRole } from '../common/roles.util';
 
 @Injectable()
 export class AuthService {
@@ -30,7 +31,7 @@ export class AuthService {
         : { email: dto.email, password_hash, name: dto.name, status: 'ACTIVE', updated_at: now },
     });
 
-    const freeRole = await this.getOrCreateRole(ROLE_NAMES.FREE_USER);
+    const freeRole = await getOrCreateRole(this.prisma, ROLE_NAMES.FREE_USER);
     await this.prisma.user_roles.create({
       data: {
         id: randomUUID(),
@@ -71,15 +72,7 @@ export class AuthService {
       where: { user_id: userId },
       include: { roles: true },
     });
-    return userRoles.map((userRole) => userRole.roles.name);
-  }
-
-  private async getOrCreateRole(name: string) {
-    const existing = await this.prisma.roles.findUnique({ where: { name } });
-    if (existing) {
-      return existing;
-    }
-    return this.prisma.roles.create({ data: { id: randomUUID(), name } });
+    return [...new Set(userRoles.map((userRole) => userRole.roles.name))];
   }
 
   private buildAuthResponse(

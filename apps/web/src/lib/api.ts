@@ -54,6 +54,7 @@ export interface Movie {
   durationMinutes: number | null;
   posterUrl: string | null;
   backdropUrl: string | null;
+  trailerUrl?: string | null;
   videoUrl: string | null;
   isPremium: boolean;
   locked?: boolean;
@@ -123,6 +124,7 @@ export interface Channel {
   country: string | null;
   streamUrl: string | null;
   isPremium: boolean;
+  streamStatus?: 'ok' | 'broken' | null;
   locked?: boolean;
   epgPrograms?: EpgProgram[];
 }
@@ -137,6 +139,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
+  roles: string[];
 }
 
 export interface AuthResponse {
@@ -148,11 +151,15 @@ export interface Plan {
   id: string;
   name: string;
   slug: string;
+  description?: string | null;
   priceCents: number;
   currency: string;
   intervalDays: number;
+  billingInterval?: 'MONTHLY' | 'YEARLY';
   maxProfiles: number;
+  maxDevices?: number;
   maxQuality: string;
+  isActive?: boolean;
 }
 
 export interface Subscription {

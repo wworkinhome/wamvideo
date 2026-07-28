@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { CONTENT_MANAGER_ROLES, hasAnyRole } from '@/lib/admin-roles';
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
@@ -41,6 +42,11 @@ export function Navbar() {
           {!loading && user && (
             <Link href="/favoritos" className="transition hover:text-white">
               Mi lista
+            </Link>
+          )}
+          {!loading && hasAnyRole(user?.roles, CONTENT_MANAGER_ROLES) && (
+            <Link href="/admin" className="transition hover:text-white">
+              Admin
             </Link>
           )}
         </nav>
