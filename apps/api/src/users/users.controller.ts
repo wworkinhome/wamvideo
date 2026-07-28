@@ -3,14 +3,14 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { GLOBAL_ADMIN_ROLES, ROLE_NAMES } from '../common/constants';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Roles(Role.ROOT, Role.SUPER_ADMIN, Role.ADMIN_GENERAL, Role.ADMIN_TENANT)
+  @Roles(...GLOBAL_ADMIN_ROLES, ROLE_NAMES.ADMIN_GENERAL, ROLE_NAMES.ADMIN_TENANT)
   @Get()
   findAll() {
     return this.usersService.findAll();

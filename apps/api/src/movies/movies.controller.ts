@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { MoviesService } from './movies.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
@@ -9,15 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
-
-const CONTENT_MANAGER_ROLES = [
-  Role.ROOT,
-  Role.SUPER_ADMIN,
-  Role.ADMIN_GENERAL,
-  Role.ADMIN_TENANT,
-  Role.EDITOR,
-  Role.PRODUCER,
-];
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
 
 @Controller('movies')
 export class MoviesController {
@@ -33,7 +24,7 @@ export class MoviesController {
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; role: Role } | null) {
+  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; roles: string[] } | null) {
     const movie = await this.moviesService.findBySlug(slug);
 
     if (!movie.isPremium) {

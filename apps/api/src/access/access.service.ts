@@ -1,20 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-
-const STAFF_ROLES: Role[] = [
-  Role.ROOT,
-  Role.SUPER_ADMIN,
-  Role.ADMIN_GENERAL,
-  Role.ADMIN_TENANT,
-  Role.EDITOR,
-  Role.PRODUCER,
-  Role.PREMIUM_USER,
-];
+import { STAFF_ROLES } from '../common/constants';
 
 interface RequestUser {
   id: string;
-  role: Role;
+  roles?: string[];
 }
 
 @Injectable()
@@ -26,17 +16,18 @@ export class AccessService {
       return false;
     }
 
-    if (STAFF_ROLES.includes(user.role)) {
+    const roles = user.roles ?? [];
+    if (STAFF_ROLES.some((role) => roles.includes(role))) {
       return true;
     }
 
     const now = new Date();
     const subscription = await this.prisma.subscription.findFirst({
       where: {
-        userId: user.id,
+        user_id: user.id,
         status: { in: ['ACTIVE', 'TRIALING'] },
-        OR: [{ endsAt: null }, { endsAt: { gt: now } }],
-        plan: { priceCents: { gt: 0 } },
+        OR: [{ end_date: null }, { end_date: { gt: now } }],
+        plans: { price: { gt: 0 } },
       },
     });
 

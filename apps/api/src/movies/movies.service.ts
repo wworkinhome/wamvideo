@@ -1,53 +1,106 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantContextService } from '../common/tenant-context.service';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 
+const MOVIE_INCLUDE = { movie_genres: { include: { genres: true } } } as const;
+
+type MovieWithGenres = {
+  movie_genres: { genres: { id: string; name: string } }[];
+  tenant_id: string;
+  status: string;
+  created_at: Date;
+  updated_at: Date;
+  release_year: number | null;
+  duration_minutes: number | null;
+  poster_url: string | null;
+  backdrop_url: string | null;
+  trailer_url: string | null;
+  video_url: string | null;
+  is_premium: boolean;
+  is_kids: boolean;
+  [key: string]: unknown;
+};
+
 @Injectable()
 export class MoviesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantContext: TenantContextService,
+  ) {}
 
-  findAll() {
-    return this.prisma.movie.findMany({
-      where: { isPublished: true },
-      include: { genres: true },
-      orderBy: { createdAt: 'desc' },
+  async findAll() {
+    const tenant_id = await this.tenantContext.getDefaultTenantId();
+    const movies = await this.prisma.movie.findMany({
+      where: { tenant_id, status: 'PUBLISHED' },
+      include: MOVIE_INCLUDE,
+      orderBy: { created_at: 'desc' },
     });
+    return movies.map((movie) => this.toResponse(movie));
   }
 
   async findBySlug(slug: string) {
+    const tenant_id = await this.tenantContext.getDefaultTenantId();
     const movie = await this.prisma.movie.findUnique({
-      where: { slug },
-      include: { genres: true },
+      where: { tenant_id_slug: { tenant_id, slug } },
+      include: MOVIE_INCLUDE,
     });
     if (!movie) {
       throw new NotFoundException('Película no encontrada');
     }
-    return movie;
+    return this.toResponse(movie);
   }
 
-  create(dto: CreateMovieDto) {
-    const { genreIds, ...data } = dto;
-    return this.prisma.movie.create({
+  async create(dto: CreateMovieDto) {
+    const tenant_id = await this.tenantContext.getDefaultTenantId();
+    const { genreIds, isPremium, releaseYear, durationMinutes, posterUrl, backdropUrl, trailerUrl, videoUrl, title, slug, synopsis } = dto;
+    const movie = await this.prisma.movie.create({
       data: {
-        ...data,
-        genres: genreIds ? { connect: genreIds.map((id) => ({ id })) } : undefined,
+        tenant_id,
+        title,
+        slug,
+        synopsis,
+        release_year: releaseYear,
+        duration_minutes: durationMinutes,
+        poster_url: posterUrl,
+        backdrop_url: backdropUrl,
+        trailer_url: trailerUrl,
+        video_url: videoUrl,
+        is_premium: isPremium ?? false,
+        status: 'PUBLISHED',
+        updated_at: new Date(),
+        movie_genres: genreIds ? { create: genreIds.map((genre_id) => ({ genre_id })) } : undefined,
       },
-      include: { genres: true },
+      include: MOVIE_INCLUDE,
     });
+    return this.toResponse(movie);
   }
 
   async update(id: string, dto: UpdateMovieDto) {
-    const { genreIds, ...data } = dto;
     await this.ensureExists(id);
-    return this.prisma.movie.update({
+    const { genreIds, isPremium, releaseYear, durationMinutes, posterUrl, backdropUrl, trailerUrl, videoUrl, title, slug, synopsis } = dto;
+    const movie = await this.prisma.movie.update({
       where: { id },
       data: {
-        ...data,
-        genres: genreIds ? { set: genreIds.map((genreId) => ({ id: genreId })) } : undefined,
+        title,
+        slug,
+        synopsis,
+        ...(releaseYear !== undefined ? { release_year: releaseYear } : {}),
+        ...(durationMinutes !== undefined ? { duration_minutes: durationMinutes } : {}),
+        ...(posterUrl !== undefined ? { poster_url: posterUrl } : {}),
+        ...(backdropUrl !== undefined ? { backdrop_url: backdropUrl } : {}),
+        ...(trailerUrl !== undefined ? { trailer_url: trailerUrl } : {}),
+        ...(videoUrl !== undefined ? { video_url: videoUrl } : {}),
+        ...(isPremium !== undefined ? { is_premium: isPremium } : {}),
+        updated_at: new Date(),
+        movie_genres: genreIds
+          ? { deleteMany: {}, create: genreIds.map((genre_id) => ({ genre_id })) }
+          : undefined,
       },
-      include: { genres: true },
+      include: MOVIE_INCLUDE,
     });
+    return this.toResponse(movie);
   }
 
   async remove(id: string) {
@@ -60,5 +113,35 @@ export class MoviesService {
     if (!movie) {
       throw new NotFoundException('Película no encontrada');
     }
+  }
+
+  private toResponse(movie: MovieWithGenres) {
+    const {
+      movie_genres,
+      tenant_id: _tenant_id,
+      status: _status,
+      created_at: _created_at,
+      updated_at: _updated_at,
+      release_year,
+      duration_minutes,
+      poster_url,
+      backdrop_url,
+      trailer_url,
+      video_url,
+      is_premium,
+      is_kids: _is_kids,
+      ...rest
+    } = movie;
+    return {
+      ...rest,
+      releaseYear: release_year,
+      durationMinutes: duration_minutes,
+      posterUrl: poster_url,
+      backdropUrl: backdrop_url,
+      trailerUrl: trailer_url,
+      videoUrl: video_url,
+      isPremium: is_premium,
+      genres: movie_genres.map((mg) => ({ id: mg.genres.id, name: mg.genres.name })),
+    };
   }
 }

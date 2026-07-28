@@ -1,7 +1,52 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
+
+const DEFAULT_TENANT_SLUG = 'wamvideo';
+
+const ROLE_NAMES = {
+  ROOT: 'ROOT',
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  ADMIN_GENERAL: 'ADMIN_GENERAL',
+  ADMIN_TENANT: 'ADMIN_TENANT',
+  EDITOR: 'EDITOR',
+  PRODUCER: 'PRODUCER',
+  MODERATOR: 'MODERATOR',
+  SUPPORT: 'SUPPORT',
+  ANALYST: 'ANALYST',
+  PREMIUM_USER: 'PREMIUM_USER',
+  STANDARD_USER: 'STANDARD_USER',
+  FREE_USER: 'FREE_USER',
+  GUEST: 'GUEST',
+} as const;
+
+type RoleName = (typeof ROLE_NAMES)[keyof typeof ROLE_NAMES];
+
+const GLOBAL_ADMIN_ROLES: RoleName[] = [ROLE_NAMES.ROOT, ROLE_NAMES.SUPER_ADMIN];
+const CONTENT_MANAGER_ROLES: RoleName[] = [
+  ROLE_NAMES.ROOT,
+  ROLE_NAMES.SUPER_ADMIN,
+  ROLE_NAMES.ADMIN_GENERAL,
+  ROLE_NAMES.ADMIN_TENANT,
+  ROLE_NAMES.EDITOR,
+  ROLE_NAMES.PRODUCER,
+];
+
+// Emails que ya existían en la base de datos de Supabase antes de esta migración
+// de esquema. Solo se les vincula un rol vía user_roles; su password_hash nunca
+// se toca aquí.
+const SUPERADMIN_EMAILS = ['wworkinghome@gmail.com'];
+
+function slugify(name: string) {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
 
 // Streams HLS públicos de referencia, usados solo como datos de ejemplo
 // para el reproductor en desarrollo (no son contenido propio de WAMVIDEO).
@@ -11,6 +56,16 @@ const SAMPLE_HLS = {
 };
 
 const GENRE_NAMES = ['Acción', 'Drama', 'Comedia', 'Ciencia Ficción', 'Documental'] as const;
+
+const PERMISSIONS: { code: string; description: string; roles: RoleName[] }[] = [
+  { code: 'admin.full', description: 'Acceso total de administración', roles: GLOBAL_ADMIN_ROLES },
+  { code: 'content.manage', description: 'Gestionar películas, series y canales', roles: CONTENT_MANAGER_ROLES },
+  {
+    code: 'users.manage',
+    description: 'Gestionar usuarios',
+    roles: [...GLOBAL_ADMIN_ROLES, ROLE_NAMES.ADMIN_GENERAL, ROLE_NAMES.ADMIN_TENANT],
+  },
+];
 
 interface MovieSeed {
   title: string;
@@ -292,44 +347,251 @@ const CHANNELS: ChannelSeed[] = [
 
 const PROGRAM_BLOCK_MINUTES = 90; // 16 bloques x 90 min = 24h exactas
 
-async function seedChannels() {
+async function seedTenant() {
+  return prisma.tenant.upsert({
+    where: { slug: DEFAULT_TENANT_SLUG },
+    create: { id: randomUUID(), name: 'WAMVIDEO', slug: DEFAULT_TENANT_SLUG, updated_at: new Date() },
+    update: {},
+  });
+}
+
+async function seedRolesAndPermissions() {
+  const roleIdByName = new Map<string, string>();
+  for (const name of Object.values(ROLE_NAMES)) {
+    const role = await prisma.roles.upsert({
+      where: { name },
+      create: { id: randomUUID(), name },
+      update: {},
+    });
+    roleIdByName.set(name, role.id);
+  }
+
+  for (const permission of PERMISSIONS) {
+    const created = await prisma.permissions.upsert({
+      where: { code: permission.code },
+      create: { id: randomUUID(), code: permission.code, description: permission.description },
+      update: { description: permission.description },
+    });
+
+    for (const roleName of permission.roles) {
+      const role_id = roleIdByName.get(roleName)!;
+      await prisma.role_permissions.upsert({
+        where: { role_id_permission_id: { role_id, permission_id: created.id } },
+        create: { role_id, permission_id: created.id },
+        update: {},
+      });
+    }
+  }
+
+  return roleIdByName;
+}
+
+async function ensureUserRole(userId: string, roleId: string, tenantId: string | null) {
+  const existing = await prisma.user_roles.findFirst({
+    where: { user_id: userId, role_id: roleId, tenant_id: tenantId },
+  });
+  if (!existing) {
+    await prisma.user_roles.create({
+      data: { id: randomUUID(), user_id: userId, role_id: roleId, tenant_id: tenantId },
+    });
+  }
+}
+
+async function ensureDefaultProfile(userId: string, name: string) {
+  const existing = await prisma.profiles.findFirst({ where: { user_id: userId } });
+  if (!existing) {
+    await prisma.profiles.create({ data: { id: randomUUID(), user_id: userId, name } });
+  }
+}
+
+async function linkExistingSuperadmins(roleIdByName: Map<string, string>) {
+  const superAdminRoleId = roleIdByName.get(ROLE_NAMES.SUPER_ADMIN)!;
+  for (const email of SUPERADMIN_EMAILS) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      continue;
+    }
+    // Nunca se toca password_hash aquí: solo se vincula el rol y se asegura un perfil.
+    await ensureUserRole(user.id, superAdminRoleId, null);
+    await ensureDefaultProfile(user.id, user.name);
+  }
+}
+
+async function seedDemoUsers(tenantId: string, roleIdByName: Map<string, string>) {
+  const rootPassword = await bcrypt.hash('Admin123!', 10);
+  const root = await prisma.user.upsert({
+    where: { email: 'root@wamvideo.com' },
+    create: {
+      email: 'root@wamvideo.com',
+      password_hash: rootPassword,
+      name: 'Root WAMVIDEO',
+      status: 'ACTIVE',
+      tenant_id: tenantId,
+      updated_at: new Date(),
+    },
+    update: {},
+  });
+  await ensureUserRole(root.id, roleIdByName.get(ROLE_NAMES.ROOT)!, tenantId);
+  await ensureDefaultProfile(root.id, root.name);
+
+  const demoPassword = await bcrypt.hash('Demo123!', 10);
+  const demo = await prisma.user.upsert({
+    where: { email: 'demo@wamvideo.com' },
+    create: {
+      email: 'demo@wamvideo.com',
+      password_hash: demoPassword,
+      name: 'Usuario Demo',
+      status: 'ACTIVE',
+      tenant_id: tenantId,
+      updated_at: new Date(),
+    },
+    update: {},
+  });
+  await ensureUserRole(demo.id, roleIdByName.get(ROLE_NAMES.STANDARD_USER)!, tenantId);
+  await ensureDefaultProfile(demo.id, demo.name);
+}
+
+async function seedGenres(tenantId: string) {
+  const genres = new Map<string, string>();
+  for (const name of GENRE_NAMES) {
+    const slug = slugify(name);
+    const genre = await prisma.genre.upsert({
+      where: { tenant_id_slug: { tenant_id: tenantId, slug } },
+      create: { tenant_id: tenantId, name, slug },
+      update: { name },
+    });
+    genres.set(name, genre.id);
+  }
+  return genres;
+}
+
+async function seedMovies(tenantId: string, genres: Map<string, string>) {
+  for (const movie of MOVIES) {
+    const existing = await prisma.movie.findUnique({
+      where: { tenant_id_slug: { tenant_id: tenantId, slug: movie.slug } },
+    });
+    if (existing) {
+      continue;
+    }
+
+    await prisma.movie.create({
+      data: {
+        tenant_id: tenantId,
+        title: movie.title,
+        slug: movie.slug,
+        synopsis: movie.synopsis,
+        release_year: movie.releaseYear,
+        duration_minutes: movie.durationMinutes,
+        video_url: movie.videoUrl,
+        is_premium: movie.isPremium,
+        status: 'PUBLISHED',
+        updated_at: new Date(),
+        movie_genres: { create: [{ genre_id: genres.get(movie.genre)! }] },
+      },
+    });
+  }
+}
+
+async function seedSeries(tenantId: string, genres: Map<string, string>) {
+  for (const series of SERIES) {
+    let createdSeries = await prisma.series.findUnique({
+      where: { tenant_id_slug: { tenant_id: tenantId, slug: series.slug } },
+    });
+
+    if (!createdSeries) {
+      createdSeries = await prisma.series.create({
+        data: {
+          tenant_id: tenantId,
+          title: series.title,
+          slug: series.slug,
+          synopsis: series.synopsis,
+          is_premium: series.isPremium,
+          status: 'PUBLISHED',
+          updated_at: new Date(),
+          series_genres: { create: [{ genre_id: genres.get(series.genre)! }] },
+        },
+      });
+    }
+
+    const season = await prisma.season.upsert({
+      where: { series_id_number: { series_id: createdSeries.id, number: 1 } },
+      create: { series_id: createdSeries.id, number: 1, title: 'Temporada 1' },
+      update: {},
+    });
+
+    for (const [index, episode] of series.episodes.entries()) {
+      const number = index + 1;
+      await prisma.episode.upsert({
+        where: { season_id_number: { season_id: season.id, number } },
+        create: {
+          season_id: season.id,
+          number,
+          title: episode.title,
+          synopsis: episode.synopsis,
+          duration_minutes: episode.durationMinutes,
+          video_url: number % 2 === 0 ? SAMPLE_HLS.sintel : SAMPLE_HLS.bigBuckBunny,
+        },
+        update: {},
+      });
+    }
+  }
+}
+
+async function seedPlans(tenantId: string) {
+  const plans: { name: string; description: string; price: number; billing_interval: 'MONTHLY' | 'YEARLY'; max_profiles: number; video_quality: string }[] = [
+    { name: 'Gratis', description: 'Plan gratuito con anuncios', price: 0, billing_interval: 'MONTHLY', max_profiles: 1, video_quality: 'SD' },
+    { name: 'Premium', description: 'Acceso completo sin anuncios', price: 9.99, billing_interval: 'MONTHLY', max_profiles: 4, video_quality: '4K' },
+  ];
+
+  for (const plan of plans) {
+    const existing = await prisma.plan.findFirst({ where: { tenant_id: tenantId, name: plan.name } });
+    if (existing) {
+      await prisma.plan.update({ where: { id: existing.id }, data: { ...plan, tenant_id: tenantId } });
+    } else {
+      await prisma.plan.create({ data: { ...plan, tenant_id: tenantId } });
+    }
+  }
+}
+
+async function seedChannels(tenantId: string) {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
   for (const channel of CHANNELS) {
     const createdChannel = await prisma.channel.upsert({
-      where: { slug: channel.slug },
+      where: { tenant_id_slug: { tenant_id: tenantId, slug: channel.slug } },
       create: {
+        tenant_id: tenantId,
         name: channel.name,
         slug: channel.slug,
         category: channel.category,
-        isPremium: channel.isPremium,
-        streamUrl: SAMPLE_HLS.bigBuckBunny,
+        is_premium: channel.isPremium,
+        stream_url: SAMPLE_HLS.bigBuckBunny,
       },
-      update: { category: channel.category, isPremium: channel.isPremium },
+      update: { category: channel.category, is_premium: channel.isPremium },
     });
 
     for (const [index, title] of channel.programs.entries()) {
-      const startsAt = new Date(startOfDay.getTime() + index * PROGRAM_BLOCK_MINUTES * 60_000);
-      const endsAt = new Date(startsAt.getTime() + PROGRAM_BLOCK_MINUTES * 60_000);
+      const start_time = new Date(startOfDay.getTime() + index * PROGRAM_BLOCK_MINUTES * 60_000);
+      const end_time = new Date(start_time.getTime() + PROGRAM_BLOCK_MINUTES * 60_000);
 
       const existing = await prisma.epgProgram.findFirst({
-        where: { channelId: createdChannel.id, startsAt },
+        where: { channel_id: createdChannel.id, start_time },
       });
 
       if (existing) {
         await prisma.epgProgram.update({
           where: { id: existing.id },
-          data: { title, description: channel.synopsis(title), endsAt },
+          data: { title, description: channel.synopsis(title), end_time },
         });
       } else {
         await prisma.epgProgram.create({
           data: {
-            channelId: createdChannel.id,
+            channel_id: createdChannel.id,
             title,
             description: channel.synopsis(title),
-            startsAt,
-            endsAt,
+            start_time,
+            end_time,
           },
         });
       }
@@ -338,114 +600,16 @@ async function seedChannels() {
 }
 
 async function main() {
-  const genres = new Map<string, string>();
-  for (const name of GENRE_NAMES) {
-    const genre = await prisma.genre.upsert({ where: { name }, create: { name }, update: {} });
-    genres.set(name, genre.id);
-  }
+  const tenant = await seedTenant();
+  const roleIdByName = await seedRolesAndPermissions();
+  await linkExistingSuperadmins(roleIdByName);
+  await seedDemoUsers(tenant.id, roleIdByName);
 
-  const adminPassword = await bcrypt.hash('Admin123!', 10);
-  await prisma.user.upsert({
-    where: { email: 'root@wamvideo.com' },
-    create: {
-      email: 'root@wamvideo.com',
-      passwordHash: adminPassword,
-      name: 'Root WAMVIDEO',
-      role: Role.ROOT,
-    },
-    update: {},
-  });
-
-  const demoPassword = await bcrypt.hash('Demo123!', 10);
-  await prisma.user.upsert({
-    where: { email: 'demo@wamvideo.com' },
-    create: {
-      email: 'demo@wamvideo.com',
-      passwordHash: demoPassword,
-      name: 'Usuario Demo',
-      role: Role.STANDARD_USER,
-    },
-    update: {},
-  });
-
-  for (const movie of MOVIES) {
-    await prisma.movie.upsert({
-      where: { slug: movie.slug },
-      create: {
-        title: movie.title,
-        slug: movie.slug,
-        synopsis: movie.synopsis,
-        releaseYear: movie.releaseYear,
-        durationMinutes: movie.durationMinutes,
-        videoUrl: movie.videoUrl,
-        isPremium: movie.isPremium,
-        genres: { connect: [{ id: genres.get(movie.genre) }] },
-      },
-      update: {},
-    });
-  }
-
-  for (const series of SERIES) {
-    const createdSeries = await prisma.series.upsert({
-      where: { slug: series.slug },
-      create: {
-        title: series.title,
-        slug: series.slug,
-        synopsis: series.synopsis,
-        isPremium: series.isPremium,
-        genres: { connect: [{ id: genres.get(series.genre) }] },
-      },
-      update: {},
-    });
-
-    const season = await prisma.season.upsert({
-      where: { seriesId_number: { seriesId: createdSeries.id, number: 1 } },
-      create: { seriesId: createdSeries.id, number: 1, title: 'Temporada 1' },
-      update: {},
-    });
-
-    for (const [index, episode] of series.episodes.entries()) {
-      const number = index + 1;
-      await prisma.episode.upsert({
-        where: { seasonId_number: { seasonId: season.id, number } },
-        create: {
-          seasonId: season.id,
-          number,
-          title: episode.title,
-          synopsis: episode.synopsis,
-          durationMinutes: episode.durationMinutes,
-          videoUrl: number % 2 === 0 ? SAMPLE_HLS.sintel : SAMPLE_HLS.bigBuckBunny,
-        },
-        update: {},
-      });
-    }
-  }
-
-  await prisma.plan.upsert({
-    where: { slug: 'gratis' },
-    create: {
-      name: 'Gratis',
-      slug: 'gratis',
-      priceCents: 0,
-      maxProfiles: 1,
-      maxQuality: 'SD',
-    },
-    update: {},
-  });
-
-  await prisma.plan.upsert({
-    where: { slug: 'premium' },
-    create: {
-      name: 'Premium',
-      slug: 'premium',
-      priceCents: 999,
-      maxProfiles: 4,
-      maxQuality: '4K',
-    },
-    update: {},
-  });
-
-  await seedChannels();
+  const genres = await seedGenres(tenant.id);
+  await seedMovies(tenant.id, genres);
+  await seedSeries(tenant.id, genres);
+  await seedPlans(tenant.id);
+  await seedChannels(tenant.id);
 
   // eslint-disable-next-line no-console
   console.log(

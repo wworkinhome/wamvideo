@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -9,15 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
-
-const CONTENT_MANAGER_ROLES = [
-  Role.ROOT,
-  Role.SUPER_ADMIN,
-  Role.ADMIN_GENERAL,
-  Role.ADMIN_TENANT,
-  Role.EDITOR,
-  Role.PRODUCER,
-];
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
 
 @Controller('channels')
 export class ChannelsController {
@@ -33,7 +24,7 @@ export class ChannelsController {
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; role: Role } | null) {
+  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; roles: string[] } | null) {
     const channel = await this.channelsService.findBySlug(slug);
 
     if (!channel.isPremium) {

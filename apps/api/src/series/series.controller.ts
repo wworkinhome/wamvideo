@@ -1,5 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { SeriesService } from './series.service';
 import { CreateSeriesDto } from './dto/create-series.dto';
 import { UpdateSeriesDto } from './dto/update-series.dto';
@@ -9,15 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
-
-const CONTENT_MANAGER_ROLES = [
-  Role.ROOT,
-  Role.SUPER_ADMIN,
-  Role.ADMIN_GENERAL,
-  Role.ADMIN_TENANT,
-  Role.EDITOR,
-  Role.PRODUCER,
-];
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
 
 @Controller('series')
 export class SeriesController {
@@ -33,7 +24,7 @@ export class SeriesController {
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; role: Role } | null) {
+  async findOne(@Param('slug') slug: string, @CurrentUser() user: { id: string; roles: string[] } | null) {
     const series = await this.seriesService.findBySlug(slug);
 
     if (!series.isPremium) {
@@ -48,7 +39,7 @@ export class SeriesController {
     return {
       ...series,
       locked: true,
-      seasons: series.seasons.map((season) => ({
+      seasons: series.seasons!.map((season) => ({
         ...season,
         episodes: season.episodes.map((episode) => ({ ...episode, videoUrl: null })),
       })),
