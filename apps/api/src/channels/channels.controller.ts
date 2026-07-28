@@ -2,6 +2,8 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { ListChannelsDto } from './dto/list-channels.dto';
+import { ImportChannelsDto } from './dto/import-channels.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -18,8 +20,8 @@ export class ChannelsController {
   ) {}
 
   @Get()
-  findAll(@Query('category') category?: string) {
-    return this.channelsService.findAll(category);
+  findAll(@Query() query: ListChannelsDto) {
+    return this.channelsService.findAll(query);
   }
 
   @UseGuards(OptionalJwtAuthGuard)
@@ -40,6 +42,13 @@ export class ChannelsController {
   @Post()
   create(@Body() dto: CreateChannelDto) {
     return this.channelsService.create(dto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(...CONTENT_MANAGER_ROLES)
+  @Post('import')
+  importFromM3U(@Body() dto: ImportChannelsDto) {
+    return this.channelsService.importFromM3U(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

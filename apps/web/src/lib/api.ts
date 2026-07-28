@@ -99,6 +99,13 @@ export type CatalogItem =
   | { kind: 'movie'; item: Movie }
   | { kind: 'series'; item: Series };
 
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface EpgProgram {
   id: string;
   title: string;
@@ -112,11 +119,17 @@ export interface Channel {
   name: string;
   slug: string;
   logoUrl: string | null;
-  category: string;
+  category: string | null;
+  country: string | null;
   streamUrl: string | null;
   isPremium: boolean;
   locked?: boolean;
-  epgPrograms: EpgProgram[];
+  epgPrograms?: EpgProgram[];
+}
+
+export interface EpgChannelGuide {
+  channel: Channel;
+  programs: EpgProgram[];
 }
 
 export interface AuthUser {

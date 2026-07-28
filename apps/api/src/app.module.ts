@@ -8,6 +8,7 @@ import { SeriesModule } from './series/series.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { WatchHistoryModule } from './watch-history/watch-history.module';
 import { ChannelsModule } from './channels/channels.module';
+import { EpgModule } from './epg/epg.module';
 import { AccessModule } from './access/access.module';
 import { PlansModule } from './plans/plans.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -24,6 +25,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     FavoritesModule,
     WatchHistoryModule,
     ChannelsModule,
+    EpgModule,
     PlansModule,
     SubscriptionsModule,
   ],

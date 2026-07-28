@@ -43,7 +43,7 @@ export default async function ChannelPage({ params }: { params: { slug: string }
 
         <h2 className="mb-3 mt-8 text-lg font-semibold text-white">Programación de hoy</h2>
         <ul className="space-y-2">
-          {channel.epgPrograms.map((program) => {
+          {(channel.epgPrograms ?? []).map((program) => {
             const live = isLive(program.startsAt, program.endsAt);
             return (
               <li
