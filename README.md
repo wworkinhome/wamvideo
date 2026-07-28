@@ -35,13 +35,19 @@ cp apps/web/.env.example apps/web/.env.local
 npm run prisma:migrate --workspace apps/api
 npm run prisma:seed --workspace apps/api
 
-# 5. Levantar API y Web en paralelo
-npm run dev --workspace apps/api
-npm run dev --workspace apps/web
+# 5. Levantar API y Web juntos
+npm run dev
 ```
 
 - API: http://localhost:4000
 - Web: http://localhost:3000
+
+Si prefieres levantarlos por separado (por ejemplo, en dos terminales):
+
+```bash
+npm run dev:api   # API (NestJS) en http://localhost:4000
+npm run dev:web   # Web (Next.js) en http://localhost:3000
+```
 
 ## Documentación
 

@@ -7,6 +7,7 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "concurrently -n API,WEB -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "npm run start:dev --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
     "build:api": "npm run build --workspace apps/api",
@@ -14,5 +15,8 @@
     "prisma:generate": "npm run prisma:generate --workspace apps/api",
     "prisma:migrate": "npm run prisma:migrate --workspace apps/api",
     "prisma:seed": "npm run prisma:seed --workspace apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4"
   }
 }
