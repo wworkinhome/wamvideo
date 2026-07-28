@@ -1,73 +1,39 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { api, Movie } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
-import { VideoPlayer } from '@/components/video-player';
-import { PremiumLock } from '@/components/premium-lock';
+import { MoviePlayerGate } from '@/components/movie-player-gate';
 import { FavoriteButton } from '@/components/favorite-button';
 import { Row } from '@/components/row';
 import { ThumbItem } from '@/components/thumb-card';
 
-export default function MovieDetailPage({ params }: { params: { slug: string } }) {
-  const { token, loading: authLoading } = useAuth();
-  const [movie, setMovie] = useState<Movie | null | undefined>(undefined);
-  const [related, setRelated] = useState<ThumbItem[]>([]);
+export default async function MovieDetailPage({ params }: { params: { slug: string } }) {
+  const movie = await api.get<Movie>(`/movies/${params.slug}`).catch(() => null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    let cancelled = false;
-
-    api
-      .get<Movie>(`/movies/${params.slug}`, token)
-      .then((m) => {
-        if (!cancelled) setMovie(m);
-      })
-      .catch(() => {
-        if (!cancelled) setMovie(null);
-      });
-
-    api
-      .get<Movie[]>('/movies', token)
-      .then((all) => {
-        if (cancelled) return;
-        setRelated(
-          all
-            .filter((m) => m.slug !== params.slug)
-            .map((m) => ({
-              id: m.id,
-              title: m.title,
-              href: `/pelicula/${m.slug}`,
-              image: m.backdropUrl ?? m.posterUrl,
-              isPremium: m.isPremium,
-              genres: m.genres.map((g) => g.name),
-            })),
-        );
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [params.slug, token, authLoading]);
-
-  if (movie === undefined) {
-    return <div className="pt-24 text-center text-white/50">Cargando…</div>;
-  }
-
-  if (movie === null) {
+  if (!movie) {
     notFound();
   }
+
+  const allMovies = await api.get<Movie[]>('/movies').catch(() => [] as Movie[]);
+  const related: ThumbItem[] = allMovies
+    .filter((m) => m.id !== movie.id)
+    .map((m) => ({
+      id: m.id,
+      title: m.title,
+      href: `/pelicula/${m.slug}`,
+      image: m.backdropUrl ?? m.posterUrl,
+      isPremium: m.isPremium,
+      genres: m.genres.map((g) => g.name),
+    }));
 
   return (
     <div className="pb-16 pt-16">
       <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">
-        {movie.videoUrl ? (
-          <VideoPlayer src={movie.videoUrl} poster={movie.backdropUrl ?? movie.posterUrl} />
-        ) : (
-          <PremiumLock title={movie.title} />
-        )}
+        <MoviePlayerGate
+          slug={movie.slug}
+          title={movie.title}
+          poster={movie.backdropUrl ?? movie.posterUrl}
+          initialVideoUrl={movie.videoUrl}
+          initialLocked={movie.locked ?? false}
+        />
 
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div>

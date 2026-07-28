@@ -1,11 +1,6 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import { notFound } from 'next/navigation';
 import { api, Channel } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
-import { VideoPlayer } from '@/components/video-player';
-import { PremiumLock } from '@/components/premium-lock';
+import { ChannelPlayerGate } from '@/components/channel-player-gate';
 
 function isLive(startsAt: string, endsAt: string): boolean {
   const now = new Date();
@@ -19,40 +14,22 @@ function formatTimeRange(startsAt: string, endsAt: string): string {
   return `${start} - ${end}`;
 }
 
-export default function ChannelPage({ params }: { params: { slug: string } }) {
-  const { token, loading: authLoading } = useAuth();
-  const [channel, setChannel] = useState<Channel | null | undefined>(undefined);
+export default async function ChannelPage({ params }: { params: { slug: string } }) {
+  const channel = await api.get<Channel>(`/channels/${params.slug}`).catch(() => null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    let cancelled = false;
-
-    api
-      .get<Channel>(`/channels/${params.slug}`, token)
-      .then((c) => {
-        if (!cancelled) setChannel(c);
-      })
-      .catch(() => {
-        if (!cancelled) setChannel(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [params.slug, token, authLoading]);
-
-  if (channel === undefined) {
-    return <div className="pt-24 text-center text-white/50">Cargando…</div>;
-  }
-
-  if (channel === null) {
+  if (!channel) {
     notFound();
   }
 
   return (
     <div className="pb-16 pt-16">
       <div className="mx-auto max-w-5xl px-4 pt-8 sm:px-6">
-        {channel.streamUrl ? <VideoPlayer src={channel.streamUrl} /> : <PremiumLock title={channel.name} />}
+        <ChannelPlayerGate
+          slug={channel.slug}
+          title={channel.name}
+          initialStreamUrl={channel.streamUrl}
+          initialLocked={channel.locked ?? false}
+        />
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-extrabold text-white sm:text-3xl">{channel.name}</h1>
