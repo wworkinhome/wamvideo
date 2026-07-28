@@ -1,4 +1,6 @@
-export const DEFAULT_TENANT_SLUG = 'wamvideo';
+// El tenant real de producción en Supabase quedó creado con slug "demo"
+// (contiene el catálogo real: 14,893 canales, etc.), no "wamvideo".
+export const DEFAULT_TENANT_SLUG = 'demo';
 
 export const ROLE_NAMES = {
   ROOT: 'ROOT',

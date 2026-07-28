@@ -4,7 +4,9 @@ import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
-const DEFAULT_TENANT_SLUG = 'wamvideo';
+// El tenant real de producción en Supabase quedó creado con slug "demo"
+// (contiene el catálogo real: 14,893 canales, etc.), no "wamvideo".
+const DEFAULT_TENANT_SLUG = 'demo';
 
 const ROLE_NAMES = {
   ROOT: 'ROOT',
@@ -354,7 +356,7 @@ const PROGRAM_BLOCK_MINUTES = 90; // 16 bloques x 90 min = 24h exactas
 async function seedTenant() {
   return prisma.tenant.upsert({
     where: { slug: DEFAULT_TENANT_SLUG },
-    create: { id: randomUUID(), name: 'WAMVIDEO', slug: DEFAULT_TENANT_SLUG, updated_at: new Date() },
+    create: { id: randomUUID(), name: 'Demo Tenant', slug: DEFAULT_TENANT_SLUG, updated_at: new Date() },
     update: {},
   });
 }
