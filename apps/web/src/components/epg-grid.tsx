@@ -49,9 +49,16 @@ function currentProgramFor(channel: Channel, now: Date): EpgProgram | undefined 
   return channel.epgPrograms.find((p) => isLive(p, now)) ?? channel.epgPrograms[0];
 }
 
+function initialSelection(channels: Channel[]): Selection | null {
+  const first = channels[0];
+  if (!first) return null;
+  const program = currentProgramFor(first, new Date());
+  return program ? { channel: first, program } : null;
+}
+
 export function EpgGrid({ channels }: { channels: Channel[] }) {
   const [category, setCategory] = useState('Todos');
-  const [selected, setSelected] = useState<Selection | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(() => initialSelection(channels));
   const [now, setNow] = useState<Date | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -70,15 +77,6 @@ export function EpgGrid({ channels }: { channels: Channel[] }) {
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (!selected && channels.length > 0) {
-      const reference = new Date();
-      const first = channels[0];
-      const program = currentProgramFor(first, reference);
-      if (program) setSelected({ channel: first, program });
-    }
-  }, [channels, selected]);
 
   useEffect(() => {
     if (!now || !scrollRef.current) return;
