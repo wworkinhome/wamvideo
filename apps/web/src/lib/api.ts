@@ -96,6 +96,25 @@ export interface Favorite {
   series: Series | null;
 }
 
+export interface Profile {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  isKids: boolean;
+  hasPin: boolean;
+}
+
+export interface ContinueWatchingItem {
+  id: string;
+  kind: 'movie' | 'episode';
+  title: string;
+  image: string | null;
+  href: string;
+  isPremium: boolean;
+  progressSeconds: number;
+  durationSeconds: number | null;
+}
+
 export type CatalogItem =
   | { kind: 'movie'; item: Movie }
   | { kind: 'series'; item: Series };

@@ -3,6 +3,7 @@ import { api, Movie, Series } from '@/lib/api';
 import { Hero, HeroItem } from '@/components/hero';
 import { Row } from '@/components/row';
 import { HomeGate } from '@/components/home-gate';
+import { ContinueWatchingRow } from '@/components/continue-watching-row';
 import { toThumb, buildGenreRows } from '@/lib/catalog';
 
 export default async function HomePage() {
@@ -77,6 +78,7 @@ export default async function HomePage() {
     <div className="pb-16">
       <Hero item={heroItem} />
       <div className="-mt-16 sm:-mt-24">
+        <ContinueWatchingRow />
         <Row title="Recién agregado" items={recentThumbs} />
         <Row title="Películas" items={movieThumbs} />
         <Row title="Series" items={seriesThumbs} />

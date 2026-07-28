@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { CONTENT_MANAGER_ROLES, hasAnyRole } from '@/lib/admin-roles';
+import { gradientCss } from '@/lib/visuals';
 
 export function Navbar() {
   const { user, logout, loading } = useAuth();
+  const { activeProfile } = useProfile();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -68,10 +71,15 @@ export function Navbar() {
         )}
         {!loading && user && (
           <div className="flex items-center gap-3">
-            <span className="hidden text-white/60 sm:inline">{user.name}</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-sm font-bold text-white">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
+            <span className="hidden text-white/60 sm:inline">{activeProfile?.name ?? user.name}</span>
+            <Link
+              href="/perfiles"
+              className="flex h-8 w-8 items-center justify-center rounded text-sm font-bold text-white"
+              style={{ backgroundImage: gradientCss(activeProfile?.id ?? user.id) }}
+              title="Cambiar perfil"
+            >
+              {(activeProfile?.name ?? user.name).charAt(0).toUpperCase()}
+            </Link>
             <button
               onClick={logout}
               className="rounded bg-white/10 px-3 py-1.5 transition hover:bg-white/20"

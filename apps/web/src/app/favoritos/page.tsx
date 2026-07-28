@@ -3,26 +3,29 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { api, Favorite } from '@/lib/api';
 import { ThumbCard, ThumbItem } from '@/components/thumb-card';
 
 export default function FavoritosPage() {
   const { user, token, loading } = useAuth();
+  const { activeProfileId, loading: profileLoading } = useProfile();
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || profileLoading) return;
     if (!user) {
       setFetching(false);
       return;
     }
+    const query = activeProfileId ? `?profileId=${activeProfileId}` : '';
     api
-      .get<Favorite[]>('/favorites', token)
+      .get<Favorite[]>(`/favorites${query}`, token)
       .then(setFavorites)
       .catch(() => setFavorites([]))
       .finally(() => setFetching(false));
-  }, [user, token, loading]);
+  }, [user, token, loading, activeProfileId, profileLoading]);
 
   if (!loading && !user) {
     return (

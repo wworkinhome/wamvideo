@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useProfile } from '@/lib/profile-context';
 import { api } from '@/lib/api';
 
 export function FavoriteButton({ movieId, seriesId }: { movieId?: string; seriesId?: string }) {
   const { token, user } = useAuth();
+  const { activeProfileId } = useProfile();
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   if (!user) {
@@ -14,8 +16,9 @@ export function FavoriteButton({ movieId, seriesId }: { movieId?: string; series
 
   const handleClick = async () => {
     setStatus('saving');
+    const query = activeProfileId ? `?profileId=${activeProfileId}` : '';
     try {
-      await api.post('/favorites', { movieId, seriesId }, token);
+      await api.post(`/favorites${query}`, { movieId, seriesId }, token);
       setStatus('saved');
     } catch {
       setStatus('error');

@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileContextService } from '../common/profile-context.service';
+import { ProfilesService } from '../profiles/profiles.service';
+import { resolveProfileId } from '../common/profile-resolution.util';
 import { CreateFavoriteDto } from './dto/create-favorite.dto';
 
 const FAVORITE_INCLUDE = {
@@ -41,10 +43,11 @@ export class FavoritesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly profileContext: ProfileContextService,
+    private readonly profilesService: ProfilesService,
   ) {}
 
-  async findAllForUser(userId: string) {
-    const profile_id = await this.profileContext.getOrCreateDefaultProfileId(userId);
+  async findAllForUser(userId: string, profileId?: string) {
+    const profile_id = await resolveProfileId(this.profilesService, this.profileContext, userId, profileId);
     const favorites = await this.prisma.favorite.findMany({
       where: { profile_id },
       include: FAVORITE_INCLUDE,
@@ -53,12 +56,12 @@ export class FavoritesService {
     return favorites.map((favorite) => this.toResponse(favorite));
   }
 
-  async create(userId: string, dto: CreateFavoriteDto) {
+  async create(userId: string, dto: CreateFavoriteDto, profileId?: string) {
     if (!dto.movieId && !dto.seriesId) {
       throw new BadRequestException('Debe indicar movieId o seriesId');
     }
 
-    const profile_id = await this.profileContext.getOrCreateDefaultProfileId(userId);
+    const profile_id = await resolveProfileId(this.profilesService, this.profileContext, userId, profileId);
     const favorite = await this.prisma.favorite.create({
       data: { profile_id, movie_id: dto.movieId, series_id: dto.seriesId },
       include: FAVORITE_INCLUDE,
@@ -66,8 +69,8 @@ export class FavoritesService {
     return this.toResponse(favorite);
   }
 
-  async remove(userId: string, id: string) {
-    const profile_id = await this.profileContext.getOrCreateDefaultProfileId(userId);
+  async remove(userId: string, id: string, profileId?: string) {
+    const profile_id = await resolveProfileId(this.profilesService, this.profileContext, userId, profileId);
     return this.prisma.favorite.deleteMany({ where: { id, profile_id } });
   }
 

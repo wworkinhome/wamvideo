@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { MoviesModule } from './movies/movies.module';
 import { SeriesModule } from './series/series.module';
 import { GenresModule } from './genres/genres.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { WatchHistoryModule } from './watch-history/watch-history.module';
 import { ChannelsModule } from './channels/channels.module';
@@ -24,6 +25,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     MoviesModule,
     SeriesModule,
     GenresModule,
+    ProfilesModule,
     FavoritesModule,
     WatchHistoryModule,
     ChannelsModule,
