@@ -20,6 +20,7 @@ export default function FavoritosPage() {
     api
       .get<Favorite[]>('/favorites', token)
       .then(setFavorites)
+      .catch(() => setFavorites([]))
       .finally(() => setFetching(false));
   }, [user, token, loading]);
 
