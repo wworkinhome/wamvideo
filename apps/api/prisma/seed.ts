@@ -436,7 +436,9 @@ async function seedDemoUsers(tenantId: string, roleIdByName: Map<string, string>
     },
     update: {},
   });
-  await ensureUserRole(root.id, roleIdByName.get(ROLE_NAMES.ROOT)!, tenantId);
+  // ROOT es un rol global (como GLOBAL_ADMIN_ROLES en el backend) — nunca debe quedar
+  // scoped a un tenant específico, o perdería acceso a cualquier otro tenant.
+  await ensureUserRole(root.id, roleIdByName.get(ROLE_NAMES.ROOT)!, null);
   await ensureDefaultProfile(root.id, root.name);
 
   const demoPassword = await bcrypt.hash('Demo123!', 10);

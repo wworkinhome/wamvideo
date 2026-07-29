@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/tenant-context.service';
+import { TenantAccessService } from '../common/tenant-access.service';
+import { resolveTargetTenantId } from '../common/tenant-resolution.util';
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { CreateMovieDto } from './dto/create-movie.dto';
 import { UpdateMovieDto } from './dto/update-movie.dto';
 
@@ -28,6 +32,7 @@ export class MoviesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
+    private readonly tenantAccess: TenantAccessService,
   ) {}
 
   async findAll() {
@@ -52,8 +57,10 @@ export class MoviesService {
     return this.toResponse(movie);
   }
 
-  async create(dto: CreateMovieDto) {
-    const tenant_id = await this.tenantContext.getDefaultTenantId();
+  async create(dto: CreateMovieDto, user: AuthenticatedUser) {
+    const tenant_id = await resolveTargetTenantId(this.tenantContext, user, dto.tenantId);
+    this.tenantAccess.assertHasTenantPermission(user, tenant_id, CONTENT_MANAGER_ROLES);
+
     const { genreIds, isPremium, releaseYear, durationMinutes, posterUrl, backdropUrl, trailerUrl, videoUrl, title, slug, synopsis } = dto;
     const movie = await this.prisma.movie.create({
       data: {
@@ -77,8 +84,10 @@ export class MoviesService {
     return this.toResponse(movie);
   }
 
-  async update(id: string, dto: UpdateMovieDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateMovieDto, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
+
     const { genreIds, isPremium, releaseYear, durationMinutes, posterUrl, backdropUrl, trailerUrl, videoUrl, title, slug, synopsis } = dto;
     const movie = await this.prisma.movie.update({
       where: { id },
@@ -103,8 +112,9 @@ export class MoviesService {
     return this.toResponse(movie);
   }
 
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
     return this.prisma.movie.delete({ where: { id } });
   }
 
@@ -113,6 +123,7 @@ export class MoviesService {
     if (!movie) {
       throw new NotFoundException('Película no encontrada');
     }
+    return movie;
   }
 
   private toResponse(movie: MovieWithGenres) {

@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/tenant-context.service';
+import { TenantAccessService } from '../common/tenant-access.service';
+import { resolveTargetTenantId } from '../common/tenant-resolution.util';
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { ListChannelsDto } from './dto/list-channels.dto';
@@ -45,6 +49,7 @@ export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
+    private readonly tenantAccess: TenantAccessService,
   ) {}
 
   async findAll(query: ListChannelsDto) {
@@ -89,8 +94,10 @@ export class ChannelsService {
     return mapChannel(channel);
   }
 
-  async create(dto: CreateChannelDto) {
-    const tenant_id = await this.tenantContext.getDefaultTenantId();
+  async create(dto: CreateChannelDto, user: AuthenticatedUser) {
+    const tenant_id = await resolveTargetTenantId(this.tenantContext, user, dto.tenantId);
+    this.tenantAccess.assertHasTenantPermission(user, tenant_id, CONTENT_MANAGER_ROLES);
+
     const { logoUrl, streamUrl, isPremium, name, slug, category } = dto;
     const channel = await this.prisma.channel.create({
       data: {
@@ -106,8 +113,10 @@ export class ChannelsService {
     return mapChannel(channel);
   }
 
-  async update(id: string, dto: UpdateChannelDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateChannelDto, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
+
     const { logoUrl, streamUrl, isPremium, name, slug, category } = dto;
     const channel = await this.prisma.channel.update({
       where: { id },
@@ -123,8 +132,9 @@ export class ChannelsService {
     return mapChannel(channel);
   }
 
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
     return this.prisma.channel.delete({ where: { id } });
   }
 
@@ -132,8 +142,9 @@ export class ChannelsService {
   // script de tipo iptv-org). Por slug: si ya existe un canal con ese slug en el
   // tenant, actualiza su streamUrl/logo/categoría en vez de duplicarlo, así se puede
   // re-pegar la misma lista para refrescar URLs vencidas.
-  async importFromM3U(dto: ImportChannelsDto) {
-    const tenant_id = await this.tenantContext.getDefaultTenantId();
+  async importFromM3U(dto: ImportChannelsDto, user: AuthenticatedUser) {
+    const tenant_id = await resolveTargetTenantId(this.tenantContext, user, dto.tenantId);
+    this.tenantAccess.assertHasTenantPermission(user, tenant_id, CONTENT_MANAGER_ROLES);
     const parsed = parseM3U(dto.m3u);
 
     let created = 0;
@@ -184,5 +195,6 @@ export class ChannelsService {
     if (!channel) {
       throw new NotFoundException('Canal no encontrado');
     }
+    return channel;
   }
 }

@@ -9,6 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
 import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 @Controller('series')
 export class SeriesController {
@@ -49,21 +50,21 @@ export class SeriesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Post()
-  create(@Body() dto: CreateSeriesDto) {
-    return this.seriesService.create(dto);
+  create(@Body() dto: CreateSeriesDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.seriesService.create(dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateSeriesDto) {
-    return this.seriesService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateSeriesDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.seriesService.update(id, dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.seriesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.seriesService.remove(id, user);
   }
 }

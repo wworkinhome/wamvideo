@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, Genre, Movie } from '@/lib/api';
+import { TenantSelectorField } from '@/components/tenant-selector';
 
 export interface MovieFormValues {
+  tenantId: string;
   title: string;
   slug: string;
   synopsis: string;
@@ -20,6 +22,7 @@ export interface MovieFormValues {
 }
 
 const EMPTY_VALUES: MovieFormValues = {
+  tenantId: '',
   title: '',
   slug: '',
   synopsis: '',
@@ -35,6 +38,7 @@ const EMPTY_VALUES: MovieFormValues = {
 
 export function movieToFormValues(movie: Movie): MovieFormValues {
   return {
+    tenantId: '',
     title: movie.title,
     slug: movie.slug,
     synopsis: movie.synopsis ?? '',
@@ -86,6 +90,7 @@ export function MovieForm({
     setError(null);
 
     const payload = {
+      ...(!movieId && values.tenantId ? { tenantId: values.tenantId } : {}),
       title: values.title,
       slug: values.slug,
       synopsis: values.synopsis || undefined,
@@ -115,6 +120,8 @@ export function MovieForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex max-w-2xl flex-col gap-4">
+      {!movieId && <TenantSelectorField value={values.tenantId} onChange={(v) => set('tenantId', v)} />}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm text-white/70">
           Título

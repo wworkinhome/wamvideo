@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api, Genre } from '@/lib/api';
+import { TenantSelectorField } from '@/components/tenant-selector';
 
 export default function AdminGenerosPage() {
   const { token } = useAuth();
   const [genres, setGenres] = useState<Genre[]>([]);
   const [name, setName] = useState('');
+  const [tenantId, setTenantId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function AdminGenerosPage() {
     setSaving(true);
     setError(null);
     try {
-      await api.post('/genres', { name: name.trim() }, token);
+      await api.post('/genres', { name: name.trim(), ...(tenantId ? { tenantId } : {}) }, token);
       setName('');
       load();
     } catch (err) {
@@ -48,7 +50,11 @@ export default function AdminGenerosPage() {
     <div>
       <h1 className="text-2xl font-bold text-white">Géneros</h1>
 
-      <form onSubmit={handleSubmit} className="mt-6 flex max-w-md gap-2">
+      <div className="mt-6 max-w-md">
+        <TenantSelectorField value={tenantId} onChange={setTenantId} />
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-2 flex max-w-md gap-2">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}

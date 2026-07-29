@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantContextService } from '../common/tenant-context.service';
+import { TenantAccessService } from '../common/tenant-access.service';
+import { resolveTargetTenantId } from '../common/tenant-resolution.util';
+import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 import { CreateSeriesDto } from './dto/create-series.dto';
 import { UpdateSeriesDto } from './dto/update-series.dto';
 
@@ -47,6 +51,7 @@ export class SeriesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
+    private readonly tenantAccess: TenantAccessService,
   ) {}
 
   async findAll() {
@@ -71,8 +76,10 @@ export class SeriesService {
     return this.toResponse(series);
   }
 
-  async create(dto: CreateSeriesDto) {
-    const tenant_id = await this.tenantContext.getDefaultTenantId();
+  async create(dto: CreateSeriesDto, user: AuthenticatedUser) {
+    const tenant_id = await resolveTargetTenantId(this.tenantContext, user, dto.tenantId);
+    this.tenantAccess.assertHasTenantPermission(user, tenant_id, CONTENT_MANAGER_ROLES);
+
     const { genreIds, isPremium, posterUrl, backdropUrl, title, slug, synopsis } = dto;
     const series = await this.prisma.series.create({
       data: {
@@ -92,8 +99,10 @@ export class SeriesService {
     return this.toResponse(series);
   }
 
-  async update(id: string, dto: UpdateSeriesDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateSeriesDto, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
+
     const { genreIds, isPremium, posterUrl, backdropUrl, title, slug, synopsis } = dto;
     const series = await this.prisma.series.update({
       where: { id },
@@ -114,8 +123,9 @@ export class SeriesService {
     return this.toResponse(series);
   }
 
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, user: AuthenticatedUser) {
+    const existing = await this.ensureExists(id);
+    this.tenantAccess.assertHasTenantPermission(user, existing.tenant_id, CONTENT_MANAGER_ROLES);
     return this.prisma.series.delete({ where: { id } });
   }
 
@@ -124,6 +134,7 @@ export class SeriesService {
     if (!series) {
       throw new NotFoundException('Serie no encontrada');
     }
+    return series;
   }
 
   private toResponse(series: SeriesWithGenres) {

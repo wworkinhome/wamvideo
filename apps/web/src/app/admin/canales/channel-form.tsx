@@ -4,8 +4,10 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, Channel } from '@/lib/api';
+import { TenantSelectorField } from '@/components/tenant-selector';
 
 export interface ChannelFormValues {
+  tenantId: string;
   name: string;
   slug: string;
   category: string;
@@ -15,6 +17,7 @@ export interface ChannelFormValues {
 }
 
 const EMPTY_VALUES: ChannelFormValues = {
+  tenantId: '',
   name: '',
   slug: '',
   category: '',
@@ -25,6 +28,7 @@ const EMPTY_VALUES: ChannelFormValues = {
 
 export function channelToFormValues(channel: Channel): ChannelFormValues {
   return {
+    tenantId: '',
     name: channel.name,
     slug: channel.slug,
     category: channel.category ?? '',
@@ -59,6 +63,7 @@ export function ChannelForm({
     setError(null);
 
     const payload = {
+      ...(!channelId && values.tenantId ? { tenantId: values.tenantId } : {}),
       name: values.name,
       slug: values.slug,
       category: values.category || undefined,
@@ -83,6 +88,8 @@ export function ChannelForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-6 flex max-w-xl flex-col gap-4">
+      {!channelId && <TenantSelectorField value={values.tenantId} onChange={(v) => set('tenantId', v)} />}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm text-white/70">
           Nombre

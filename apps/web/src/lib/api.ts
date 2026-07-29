@@ -166,6 +166,14 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  domain: string | null;
+  status: 'ACTIVE' | 'SUSPENDED';
+}
+
 export interface Plan {
   id: string;
   name: string;

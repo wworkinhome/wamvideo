@@ -41,16 +41,21 @@ export class UsersService {
     return this.toSafeUser(user);
   }
 
-  // Reemplaza por completo el conjunto de roles del usuario (no acumula).
+  // Reemplaza el conjunto de roles del usuario en el ámbito indicado: si se pasa
+  // tenantId, solo afecta los roles de ese tenant; si no, solo los roles globales.
+  // Nunca toca roles de otros ámbitos (evita que asignar un rol en un tenant borre
+  // el rol global del usuario, o viceversa).
   async updateRoles(id: string, dto: UpdateUserRolesDto) {
     await this.ensureExists(id);
 
-    await this.prisma.user_roles.deleteMany({ where: { user_id: id } });
+    await this.prisma.user_roles.deleteMany({
+      where: { user_id: id, tenant_id: dto.tenantId ?? null },
+    });
 
     for (const roleName of dto.roles) {
       const role = await getOrCreateRole(this.prisma, roleName);
       await this.prisma.user_roles.create({
-        data: { id: randomUUID(), user_id: id, role_id: role.id, tenant_id: null },
+        data: { id: randomUUID(), user_id: id, role_id: role.id, tenant_id: dto.tenantId ?? null },
       });
     }
 
@@ -66,11 +71,18 @@ export class UsersService {
 
   private toSafeUser(user: {
     password_hash: string;
-    user_roles: { roles: { name: string } }[];
+    user_roles: { tenant_id: string | null; roles: { name: string } }[];
     [key: string]: unknown;
   }) {
     const roleNames = [...new Set(user.user_roles.map((userRole) => userRole.roles.name))];
+    const globalRoles = [...new Set(user.user_roles.filter((ur) => !ur.tenant_id).map((ur) => ur.roles.name))];
+    const tenantRoles: Record<string, string[]> = {};
+    for (const ur of user.user_roles) {
+      if (!ur.tenant_id) continue;
+      const bucket = tenantRoles[ur.tenant_id] ?? (tenantRoles[ur.tenant_id] = []);
+      if (!bucket.includes(ur.roles.name)) bucket.push(ur.roles.name);
+    }
     const { password_hash: _passwordHash, user_roles: _userRoles, ...safeUser } = user;
-    return { ...safeUser, role: pickPrimaryRole(roleNames), roles: roleNames };
+    return { ...safeUser, role: pickPrimaryRole(roleNames), roles: roleNames, globalRoles, tenantRoles };
   }
 }

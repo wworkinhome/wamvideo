@@ -9,6 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
 import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 @Controller('movies')
 export class MoviesController {
@@ -38,21 +39,21 @@ export class MoviesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Post()
-  create(@Body() dto: CreateMovieDto) {
-    return this.moviesService.create(dto);
+  create(@Body() dto: CreateMovieDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.moviesService.create(dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateMovieDto) {
-    return this.moviesService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateMovieDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.moviesService.update(id, dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.moviesService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.moviesService.remove(id, user);
   }
 }

@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/canales', label: 'Canales' },
   { href: '/admin/planes', label: 'Planes' },
   { href: '/admin/usuarios', label: 'Usuarios', requiresGlobalAdmin: true },
+  { href: '/admin/tenants', label: 'Tenants', requiresGlobalAdmin: true },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

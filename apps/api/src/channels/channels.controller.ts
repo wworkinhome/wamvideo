@@ -11,6 +11,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AccessService } from '../access/access.service';
 import { CONTENT_MANAGER_ROLES } from '../common/constants';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 @Controller('channels')
 export class ChannelsController {
@@ -40,28 +41,28 @@ export class ChannelsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Post()
-  create(@Body() dto: CreateChannelDto) {
-    return this.channelsService.create(dto);
+  create(@Body() dto: CreateChannelDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.channelsService.create(dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Post('import')
-  importFromM3U(@Body() dto: ImportChannelsDto) {
-    return this.channelsService.importFromM3U(dto);
+  importFromM3U(@Body() dto: ImportChannelsDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.channelsService.importFromM3U(dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateChannelDto) {
-    return this.channelsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateChannelDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.channelsService.update(id, dto, user);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(...CONTENT_MANAGER_ROLES)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.channelsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.channelsService.remove(id, user);
   }
 }
